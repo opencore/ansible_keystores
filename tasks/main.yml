@@ -10,7 +10,7 @@
     - "{{ CERT_DIR }}"
 
 - name: Create server keystores. (if not already present)
-  command: /usr/bin/keytool -genkeypair -keystore {{ CERT_DIR }}/{{ item }}.jks -keyalg RSA -alias {{ item }} -dname "CN={{ item }}"{% if hostvars[item]['ip'] is defined %} -ext "san=ip:{{ hostvars[item]['ip'] }}"{% endif %}{% if hostvars[item]['dns'] is defined %} -ext "san=dns:{{ hostvars[item]['dns'] }}"{% endif %} -storepass "{{ SSL_STORE_PASSWORD }}" -keypass "{{ SSL_KEY_PASSWORD }}" -validity 1000
+  command: /usr/bin/keytool -genkeypair -keystore {{ CERT_DIR }}/{{ item }}.jks -keyalg RSA -alias {{ item }} -dname "CN={{ item }}, C={{ C }}, ST={{ ST }}, L={{ L }}, O={{ O }}, OU={{ OU }}"{% if hostvars[item]['ip'] is defined %} -ext "san=ip:{{ hostvars[item]['ip'] }}"{% endif %}{% if hostvars[item]['dns'] is defined %} -ext "san=dns:{{ hostvars[item]['dns'] }}"{% endif %} -storepass "{{ SSL_STORE_PASSWORD }}" -keypass "{{ SSL_KEY_PASSWORD }}" -validity 1000
   args:
     creates: "{{ CERT_DIR }}/{{ item }}.jks"
   with_items:
