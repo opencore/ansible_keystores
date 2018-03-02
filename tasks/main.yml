@@ -13,10 +13,10 @@
     path=
     state=directory
   with_items:
-    - {{ KEYSTORE_BASE_DIR }}
-    - {{ KEYSTORE_DIR }}
-    - {{ CA_DIR}}
-    - {{ CERT_DIR }}
+    - "{{ KEYSTORE_BASE_DIR }}"
+    - "{{ KEYSTORE_DIR }}"
+    - "{{ CA_DIR}}"
+    - "{{ CERT_DIR }}"
 
 - name: Create server keystores. (if not already present)
   command: /usr/bin/keytool -genkeypair -keystore {{ CERT_DIR }}/{{ item }}.jks -keyalg RSA -alias {{ item }} -dname "CN={{ item }}" -ext "san=ip:{{ hostvars[item]['ansible_host'] }}" -storepass "{{ SSL_STORE_PASSWORD }}" -keypass "{{ SSL_KEY_PASSWORD }}" -validity 1000
