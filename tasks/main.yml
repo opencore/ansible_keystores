@@ -16,6 +16,13 @@
   with_items:
     - "{{ groups.servers }}"
 
+- name: Export CSRs for hosts (if not already present)
+  command: /usr/bin/keytool -certreq -keystore {{ KEYSTORE_DIR }}/{{ item }}.jks -alias {{ item }}{% if hostvars[item]['san'] is defined %} -ext "san={{ hostvars[item]['san'] }}"{% endif %} -storepass {{ SSL_STORE_PASSWORD }} -keypass {{ SSL_KEY_PASSWORD }} -file {{ CERT_DIR }}/{{ item }}.csr
+  args:
+    creates: "{{ CERT_DIR }}/{{ item }}.csr"
+  with_items:
+    - "{{ groups.servers }}"
+
 - name: Create client keystores (if not already present)
   command: /usr/bin/keytool -genkeypair -keystore {{ KEYSTORE_DIR }}/{{ item }}.jks -keyalg RSA -alias {{ item }} -dname "CN={{ item }}, C={{ C }}, ST={{ ST }}, L={{ L }}, O={{ O }}, OU={{ OU }}" -storepass "{{ SSL_STORE_PASSWORD }}" -keypass "{{ SSL_KEY_PASSWORD }}" -validity 1000
   args:
@@ -23,12 +30,11 @@
   with_items:
     - "{{ CLIENT_CERTIFICATES }}"
 
-- name: Export CSR (if not already present)
-  command: /usr/bin/keytool -certreq -keystore {{ KEYSTORE_DIR }}/{{ item }}.jks -alias {{ item }}{% if hostvars[item]['san'] is defined %} -ext "san={{ hostvars[item]['san'] }}"{% endif %} -storepass {{ SSL_STORE_PASSWORD }} -keypass {{ SSL_KEY_PASSWORD }} -file {{ CERT_DIR }}/{{ item }}.csr
+- name: Export CSRs for clients (if not already present)
+  command: /usr/bin/keytool -certreq -keystore {{ KEYSTORE_DIR }}/{{ item }}.jks -alias {{ item }} -storepass {{ SSL_STORE_PASSWORD }} -keypass {{ SSL_KEY_PASSWORD }} -file {{ CERT_DIR }}/{{ item }}.csr
   args:
     creates: "{{ CERT_DIR }}/{{ item }}.csr"
   with_items:
-    - "{{ groups.servers }}"
     - "{{ CLIENT_CERTIFICATES }}"
 
 # Create CA files and sign all certificate requests
