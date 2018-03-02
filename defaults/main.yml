@@ -1,0 +1,17 @@
+---
+CLIENT_CERTIFICATES:
+  - user1
+  - user2
+
+O: OpenCore
+C: DE
+ST: Test
+L: Wedel
+OU: Internal
+
+DOMAIN: OPENCORE.COM
+
+SSL_STORE_PASSWORD: secret
+SSL_KEY_PASSWORD: secret
+
+KEYSTORE_DIR: "{{ KEYSTORE_BASE_DIR }}/keystores"

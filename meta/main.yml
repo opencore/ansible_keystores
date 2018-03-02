@@ -1,0 +1,25 @@
+galaxy_info:
+  author: Sönke Liebau
+  description: Generates a set of java key- & truststores
+  company: OpenCore GmbH & Co. KG
+
+  license: GPLv2
+
+  min_ansible_version: 1.2
+
+  platforms:
+  - name: EL
+    versions:
+    - 6
+    - 7
+  - name: Fedora
+    versions:
+    - 25
+    - 26
+
+  galaxy_tags:
+    - ssl
+    - tls
+    - keystore
+
+dependencies: []
