@@ -62,7 +62,7 @@
     creates: "{{ KEYSTORE_DIR }}/truststore.jks"
 
 - name: Sign CSRs
-  command: openssl x509 -req -CA {{ CA_DIR }}/rootCA.pem -CAkey rootCA.key -in {{ item }}.csr -out {{ item }}.crt -days 1000 -CAcreateserial -passin pass:{{ SSL_KEY_PASSWORD }}
+  command: openssl x509 -req -CA {{ CA_DIR }}/rootCA.pem -CAkey {{ CA_DIR }}/rootCA.key -in {{ item }}.csr -out {{ item }}.crt -days 1000 -CAcreateserial -passin pass:{{ SSL_KEY_PASSWORD }}
   args:
     chdir: "{{ CERT_DIR }}"
     creates: "{{ item }}.crt"
