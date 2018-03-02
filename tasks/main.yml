@@ -1,25 +1,16 @@
 ---
-# Purpose: Creates the TLS/SSL certificates needed
-#
-# Notes:
-#   - Executed on every master and worker server
-#   - This is part I of a three step process:
-#     Phase 1) Generate all certs, keystores, and CSRs for every server and process
-#     Phase 2) Sign all CSRs with the central CA root certificate
-#     Phase 3) Import all signed CSRs and put shared truststore in place
-
+# Generate keys and certificate requests
 - name: Create directories (if not already present)
   file:
     path={{ item }}
     state=directory
   with_items:
-    - "{{ KEYSTORE_BASE_DIR }}"
     - "{{ KEYSTORE_DIR }}"
     - "{{ CA_DIR}}"
     - "{{ CERT_DIR }}"
 
 - name: Create server keystores. (if not already present)
-  command: /usr/bin/keytool -genkeypair -keystore {{ CERT_DIR }}/{{ item }}.jks -keyalg RSA -alias {{ item }} -dname "CN={{ item }}" -ext "san=ip:{{ hostvars[item]['ansible_host'] }}" -storepass "{{ SSL_STORE_PASSWORD }}" -keypass "{{ SSL_KEY_PASSWORD }}" -validity 1000
+  command: /usr/bin/keytool -genkeypair -keystore {{ CERT_DIR }}/{{ item }}.jks -keyalg RSA -alias {{ item }} -dname "CN={{ item }}"{% if hostvars[item]['ip'] is defined %} -ext "san=ip:{{ hostvars[item]['ip'] }}"{% endif %}{% if hostvars[item]['dns'] is defined %} -ext "san=dns:{{ hostvars[item]['dns'] }}"{% endif %} -storepass "{{ SSL_STORE_PASSWORD }}" -keypass "{{ SSL_KEY_PASSWORD }}" -validity 1000
   args:
     creates: "{{ CERT_DIR }}/{{ item }}.jks"
   with_items:
@@ -40,14 +31,7 @@
     - "{{ groups.servers }}"
     - "{{ CLIENT_CERTIFICATES }}"
 
-# Purpose: Signs the TLS/SSL certificates of each server
-#
-# Notes:
-#   - Executed on KDC server
-#   - This is part II of a three step process:
-#     Phase 1) Generate all certs, keystores, and CSRs for every server and process
-#     Phase 2) Sign all CSRs with the central CA root certificate
-#     Phase 3) Import all signed CSRs and put shared truststore in place
+# Create CA files and sign all certificate requests
 
 - name: Create private key to sign CSRs with (if not already created)
   command: openssl req -new -x509 -nodes -newkey rsa:2048 -keyout rootCA.key -out rootCA.pem -subj "/C={{ C }}/ST={{ ST }}/L={{ L }}/O={{ O }}/OU={{ OU }}/CN={{ DOMAIN }}" -days 1000
@@ -70,15 +54,7 @@
     - "{{ groups.servers }}"
     - "{{ CLIENT_CERTIFICATES }}"
 
-# Purpose: Signs the TLS/SSL certificates of each server
-#
-# Notes:
-#   - Executed on all master and worker server
-#   - This is part III of a three step process:
-#     Phase 1) Generate all certs, keystores, and CSRs for every server and process
-#     Phase 2) Sign all CSRs with the central CA root certificate
-#     Phase 3) Import all signed CSRs and put shared truststore in place
-
+# Import CA & signed certs into keystores
 - name: Import root CA certificate into keystore
   command: /usr/bin/keytool -importcert -keystore {{ item }}.jks -alias CARoot -storepass "{{ SSL_STORE_PASSWORD }}" -keypass "{{ SSL_KEY_PASSWORD }}" -file {{ CA_DIR }}/rootCA.pem -noprompt
   args:
