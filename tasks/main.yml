@@ -10,7 +10,7 @@
 
 - name: Create directories (if not already present)
   file:
-    path=
+    path={{ item }}
     state=directory
   with_items:
     - "{{ KEYSTORE_BASE_DIR }}"
