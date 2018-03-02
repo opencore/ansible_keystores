@@ -13,12 +13,18 @@
     path={{ KEYSTORE_BASE_DIR }}
     state=directory
 
-- name: Create keystore (if not already present)
-  command: /usr/bin/keytool -genkeypair -keystore {{ KEYSTORE_BASE_DIR }}/{{ item }}.jks -keyalg RSA -alias {{ item }} -dname "CN={{ item }}" -storepass "{{ SSL_STORE_PASSWORD }}" -keypass "{{ SSL_KEY_PASSWORD }}" -validity 1000
+- name: Create server keystores. (if not already present)
+  command: /usr/bin/keytool -genkeypair -keystore {{ KEYSTORE_BASE_DIR }}/{{ item }}.jks -keyalg RSA -alias {{ item.inventory_hostname }} -dname "CN={{ item }}" -ext "san=ip:{{ item.ansible_host }}" -storepass "{{ SSL_STORE_PASSWORD }}" -keypass "{{ SSL_KEY_PASSWORD }}" -validity 1000
   args:
     creates: "{{ KEYSTORE_BASE_DIR }}/{{ item }}.jks"
   with_items:
     - "{{ groups.servers }}"
+
+- name: Create client keystores (if not already present)
+  command: /usr/bin/keytool -genkeypair -keystore {{ KEYSTORE_BASE_DIR }}/{{ item }}.jks -keyalg RSA -alias {{ item }} -dname "CN={{ item }}, C={{ C }}, ST={{ ST }}, L={{ L }}, O={{ O }}, OU={{ OU }}" -storepass "{{ SSL_STORE_PASSWORD }}" -keypass "{{ SSL_KEY_PASSWORD }}" -validity 1000
+  args:
+    creates: "{{ KEYSTORE_BASE_DIR }}/{{ item }}.jks"
+  with_items:
     - "{{ CLIENT_CERTIFICATES }}"
 
 - name: Export CSR (if not already present)
