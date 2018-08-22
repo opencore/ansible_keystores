@@ -5,26 +5,23 @@
   file:
     path: "{{ KEYSTORE_DIR }}"
     state: absent
-  when: {{ FORCE_CA | bool}}
+  when: FORCE_CA | bool
 
-- name: Find existing keystores to remove
+- name: Find existing keystores to remove (except truststore, as FORCE_CA was not specified)
   find:
-    paths: "/srv/deleteme/"
-    patterns: "[^truststore].*\.jks"
-    use_regex: true
+    paths: "{{ KEYSTORE_DIR }}"
+    patterns: "*.jks"
+    excludes: "truststore.jks"
   register: keystores_to_delete
-  when: {{ FORCE_CERTS and not FORCE_CA | bool}}
-
-- debug:
-  msg: {{ keystores_to_delete }}
+  when: FORCE_CERTS and not FORCE_CA | bool
 
 - name: FORCE_CERTS specified, removing existing certificates
   file:
     path: "{{ KEYSTORE_DIR }}"
     state: absent
-  when: {{ FORCE_CERTS and not FORCE_CA | bool}}
+  when: FORCE_CERTS and not FORCE_CA | bool
   with_items:
-    - {{ keystores_to_delete }}
+    - "{{ keystores_to_delete }}"
     - { "path": CERT_DIR }
 
 # Generate keys and certificate requests
@@ -37,8 +34,8 @@
     - "{{ CA_DIR}}"
     - "{{ CERT_DIR }}"
 
-- name: Create server keystores. (if not already present)
-  command: /usr/bin/keytool -genkeypair -keystore {{ KEYSTORE_DIR }}/{{ item }}.jks -keyalg RSA -alias {{ item }} -dname "CN={{ item }}, C={{ C }}, ST={{ ST }}, L={{ L }}, O={{ O }}, OU={{ OU }}"{% if hostvars[item]['san'] is defined %} -ext "san={{ hostvars[item]['san'] }}"{% endif %} -storepass "{{ SSL_STORE_PASSWORD }}" -keypass "{{ SSL_KEY_PASSWORD }}" -validity {{ KEY_VALID_DAYS }} -deststoretype pkcs12"
+- name: Create server keystores (if not already present)
+  command: /usr/bin/keytool -genkeypair -keystore {{ KEYSTORE_DIR }}/{{ item }}.jks -keyalg RSA -alias {{ item }} -dname "CN={{ item }}, C={{ C }}, ST={{ ST }}, L={{ L }}, O={{ O }}, OU={{ OU }}"{% if hostvars[item]['san'] is defined %} -ext "san={{ hostvars[item]['san'] }}"{% endif %} -storepass "{{ SSL_STORE_PASSWORD }}" -keypass "{{ SSL_KEY_PASSWORD }}" -validity {{ KEY_VALID_DAYS }} -deststoretype pkcs12
   args:
     creates: "{{ CERT_DIR }}/{{ item }}.jks"
   with_items:
