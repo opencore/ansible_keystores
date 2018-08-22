@@ -1,4 +1,32 @@
 ---
+# Remove entire working directory if FORCE_CA is set
+# as this also means that certificates will be regenerated
+- name: FORCE_CA specified, removing entire working directory
+  file:
+    path: "{{ KEYSTORE_DIR }}"
+    state: absent
+  when: {{ FORCE_CA | bool}}
+
+- name: Find existing keystores to remove
+  find:
+    paths: "/srv/deleteme/"
+    patterns: "[^truststore].*\.jks"
+    use_regex: true
+  register: keystores_to_delete
+  when: {{ FORCE_CERTS and not FORCE_CA | bool}}
+
+- debug:
+  msg: {{ keystores_to_delete }}
+
+- name: FORCE_CERTS specified, removing existing certificates
+  file:
+    path: "{{ KEYSTORE_DIR }}"
+    state: absent
+  when: {{ FORCE_CERTS and not FORCE_CA | bool}}
+  with_items:
+    - {{ keystores_to_delete }}
+    - { "path": CERT_DIR }
+
 # Generate keys and certificate requests
 - name: Create directories (if not already present)
   file:
@@ -10,7 +38,7 @@
     - "{{ CERT_DIR }}"
 
 - name: Create server keystores. (if not already present)
-  command: /usr/bin/keytool -genkeypair -keystore {{ KEYSTORE_DIR }}/{{ item }}.jks -keyalg RSA -alias {{ item }} -dname "CN={{ item }}, C={{ C }}, ST={{ ST }}, L={{ L }}, O={{ O }}, OU={{ OU }}"{% if hostvars[item]['san'] is defined %} -ext "san={{ hostvars[item]['san'] }}"{% endif %} -storepass "{{ SSL_STORE_PASSWORD }}" -keypass "{{ SSL_KEY_PASSWORD }}" -validity 1000
+  command: /usr/bin/keytool -genkeypair -keystore {{ KEYSTORE_DIR }}/{{ item }}.jks -keyalg RSA -alias {{ item }} -dname "CN={{ item }}, C={{ C }}, ST={{ ST }}, L={{ L }}, O={{ O }}, OU={{ OU }}"{% if hostvars[item]['san'] is defined %} -ext "san={{ hostvars[item]['san'] }}"{% endif %} -storepass "{{ SSL_STORE_PASSWORD }}" -keypass "{{ SSL_KEY_PASSWORD }}" -validity {{ KEY_VALID_DAYS }} -deststoretype pkcs12"
   args:
     creates: "{{ CERT_DIR }}/{{ item }}.jks"
   with_items:
@@ -24,7 +52,7 @@
     - "{{ groups.servers }}"
 
 - name: Create client keystores (if not already present)
-  command: /usr/bin/keytool -genkeypair -keystore {{ KEYSTORE_DIR }}/{{ item }}.jks -keyalg RSA -alias {{ item }} -dname "CN={{ item }}, C={{ C }}, ST={{ ST }}, L={{ L }}, O={{ O }}, OU={{ OU }}" -storepass "{{ SSL_STORE_PASSWORD }}" -keypass "{{ SSL_KEY_PASSWORD }}" -validity 1000
+  command: /usr/bin/keytool -genkeypair -keystore {{ KEYSTORE_DIR }}/{{ item }}.jks -keyalg RSA -alias {{ item }} -dname "CN={{ item }}, C={{ C }}, ST={{ ST }}, L={{ L }}, O={{ O }}, OU={{ OU }}" -storepass "{{ SSL_STORE_PASSWORD }}" -keypass "{{ SSL_KEY_PASSWORD }}" -validity {{ KEY_VALID_DAYS }}
   args:
     creates: "{{ CERT_DIR }}/{{ item }}.jks"
   with_items:
@@ -40,7 +68,7 @@
 # Create CA files and sign all certificate requests
 
 - name: Create private key to sign CSRs with (if not already created)
-  command: openssl req -new -x509 -nodes -newkey rsa:2048 -keyout rootCA.key -out rootCA.pem -subj "/C={{ C }}/ST={{ ST }}/L={{ L }}/O={{ O }}/OU={{ OU }}/CN={{ DOMAIN }}" -days 1000
+  command: openssl req -new -x509 -nodes -newkey rsa:2048 -keyout rootCA.key -out rootCA.pem -subj "/C={{ C }}/ST={{ ST }}/L={{ L }}/O={{ O }}/OU={{ OU }}/CN={{ DOMAIN }}" -days {{ KEY_VALID_DAYS }}
   args:
     chdir: "{{ CA_DIR }}"
     creates: "{{ CA_DIR }}/rootCA.key"
@@ -52,7 +80,7 @@
     creates: "{{ KEYSTORE_DIR }}/truststore.jks"
 
 - name: Sign CSRs
-  command: openssl x509 -req -CA {{ CA_DIR }}/rootCA.pem -CAkey {{ CA_DIR }}/rootCA.key -in {{ item }}.csr -out {{ item }}.crt -days 1000 -CAcreateserial -passin pass:{{ SSL_KEY_PASSWORD }}
+  command: openssl x509 -req -CA {{ CA_DIR }}/rootCA.pem -CAkey {{ CA_DIR }}/rootCA.key -in {{ item }}.csr -out {{ item }}.crt -days {{ CERTIFICATE_VALID_DAYS }} -CAcreateserial -passin pass:{{ SSL_KEY_PASSWORD }}
   args:
     chdir: "{{ CERT_DIR }}"
     creates: "{{ item }}.crt"
