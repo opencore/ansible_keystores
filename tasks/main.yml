@@ -7,22 +7,22 @@
     state: absent
   when: FORCE_CA | bool
 
-- name: Find existing keystores to remove (except truststore, as FORCE_CA was not specified)
-  find:
-    paths: "{{ KEYSTORE_DIR }}"
-    patterns: "*.jks"
-    excludes: "truststore.jks"
-  register: keystores_to_delete
-  when: FORCE_CERTS and not FORCE_CA | bool
-
-- name: FORCE_CERTS specified, removing existing certificates
+- name: Remove existing certificates and signing requests
   file:
-    path: "{{ KEYSTORE_DIR }}"
+    path: "{{ CERT_DIR }}/{{ item[0] }}.{{ item[1] }}"
+    state: absent
+  when: FORCE_CERTS and not FORCE_CA | bool
+  with_nested:
+    - "{{ groups.servers |  union(CLIENT_CERTIFICATES) }}"
+    - [ 'csr', 'crt' ]
+
+- name: Remove existing keystores
+  file:
+    path: "{{ KEYSTORE_DIR }}/{{ item }}.jks"
     state: absent
   when: FORCE_CERTS and not FORCE_CA | bool
   with_items:
-    - "{{ keystores_to_delete }}"
-    - { "path": CERT_DIR }
+    - "{{ groups.servers |  union(CLIENT_CERTIFICATES) }}"
 
 # Generate keys and certificate requests
 - name: Create directories (if not already present)
@@ -37,7 +37,7 @@
 - name: Create server keystores (if not already present)
   command: /usr/bin/keytool -genkeypair -keystore {{ KEYSTORE_DIR }}/{{ item }}.jks -keyalg RSA -alias {{ item }} -dname "CN={{ item }}, C={{ C }}, ST={{ ST }}, L={{ L }}, O={{ O }}, OU={{ OU }}"{% if hostvars[item]['san'] is defined %} -ext "san={{ hostvars[item]['san'] }}"{% endif %} -storepass "{{ SSL_STORE_PASSWORD }}" -keypass "{{ SSL_KEY_PASSWORD }}" -validity {{ KEY_VALID_DAYS }} -deststoretype pkcs12
   args:
-    creates: "{{ CERT_DIR }}/{{ item }}.jks"
+    creates: "{{ KEYSTORE_DIR }}/{{ item }}.jks"
   with_items:
     - "{{ groups.servers }}"
 
@@ -51,7 +51,7 @@
 - name: Create client keystores (if not already present)
   command: /usr/bin/keytool -genkeypair -keystore {{ KEYSTORE_DIR }}/{{ item }}.jks -keyalg RSA -alias {{ item }} -dname "CN={{ item }}, C={{ C }}, ST={{ ST }}, L={{ L }}, O={{ O }}, OU={{ OU }}" -storepass "{{ SSL_STORE_PASSWORD }}" -keypass "{{ SSL_KEY_PASSWORD }}" -validity {{ KEY_VALID_DAYS }}
   args:
-    creates: "{{ CERT_DIR }}/{{ item }}.jks"
+    creates: "{{ KEYSTORE_DIR }}/{{ item }}.jks"
   with_items:
     - "{{ CLIENT_CERTIFICATES }}"
 
